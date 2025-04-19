@@ -123,6 +123,9 @@ const theme = createTheme({
   },
 });
 
+// Add this at the top of the file
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+
 function PatentCard({ patent, onBookmark, onShare, onClick, isBookmarked }) {
   return (
     <Card onClick={onClick} sx={{ cursor: 'pointer', mb: 2 }}>
@@ -259,7 +262,7 @@ function App() {
 
   const fetchModelStats = async () => {
     try {
-      const response = await fetch('http://localhost:8000/model-stats');
+      const response = await fetch(`${API_URL}/model-stats`);
       const data = await response.json();
       setModelStats(data);
     } catch (error) {
@@ -274,7 +277,7 @@ function App() {
     setError(null);
     
     try {
-      const response = await axios.post('http://localhost:8000/search', {
+      const response = await axios.post(`${API_URL}/search`, {
         query: searchQuery,
         max_results: 10,
         search_mode: searchMode
@@ -339,7 +342,7 @@ function App() {
     }
 
     try {
-      const response = await fetch('http://localhost:8000/feedback', {
+      const response = await fetch(`${API_URL}/feedback`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
