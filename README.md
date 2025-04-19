@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # PatentAI - AI-Powered Patent Search Tool
 
 PatentAI is a modern web application that helps users search and analyze patents using advanced AI technology. It provides both semantic and keyword-based search capabilities, along with features for collecting user feedback to improve search results.
@@ -104,3 +105,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - USPTO for providing the patent data API
 - Hugging Face for the sentence-transformers library
 - FastAPI and React communities for their excellent documentation 
+=======
+# PatentAI
+>>>>>>> 23f757f59b8a51f3cbf88deccd4c8b0204f50ebf
