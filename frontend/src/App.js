@@ -1,22 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import {
   Container,
-  Box,
   TextField,
   Button,
   Typography,
   Paper,
-  CircularProgress,
   Grid,
   Card,
   CardContent,
-  Chip,
-  Stack,
-  AppBar,
-  Toolbar,
-  ThemeProvider,
-  createTheme,
-  alpha,
+  Box,
   IconButton,
   Tooltip,
   Dialog,
@@ -24,7 +16,13 @@ import {
   DialogContent,
   DialogActions,
   Divider,
-  DialogContentText,
+  ThemeProvider,
+  createTheme,
+  AppBar,
+  Toolbar,
+  Chip,
+  Stack,
+  CircularProgress,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import PersonIcon from '@mui/icons-material/Person';
@@ -37,6 +35,7 @@ import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import ThumbUpIcon from '@mui/icons-material/ThumbUp';
 import ThumbDownIcon from '@mui/icons-material/ThumbDown';
 import SchoolIcon from '@mui/icons-material/School';
+import SummarizeIcon from '@mui/icons-material/Summarize';
 import axios from 'axios';
 
 // Create a modern theme
@@ -238,6 +237,8 @@ function App() {
   const [relevantPatents, setRelevantPatents] = useState([]);
   const [irrelevantPatents, setIrrelevantPatents] = useState([]);
   const [modelStats, setModelStats] = useState(null);
+  const [summary, setSummary] = useState(null);
+  const [isSummarizing, setIsSummarizing] = useState(false);
 
   const searchPlaceholders = [
     "Try: 'A device that helps cars navigate using satellites'",
@@ -247,13 +248,13 @@ function App() {
     "Try: 'Artificial intelligence for predicting weather'",
   ];
 
-  // Rotate placeholder text every 5 seconds
   useEffect(() => {
     const interval = setInterval(() => {
-      setPlaceholderIndex((prev) => (prev + 1) % searchPlaceholders.length);
-    }, 5000);
+      setPlaceholderIndex((prevIndex) => (prevIndex + 1) % searchPlaceholders.length);
+    }, 3000);
+
     return () => clearInterval(interval);
-  }, []);
+  }, [searchPlaceholders.length]);
 
   useEffect(() => {
     // Fetch model stats when component mounts
@@ -362,6 +363,33 @@ function App() {
       }
     } catch (error) {
       console.error('Error submitting feedback:', error);
+    }
+  };
+
+  const handleSummarize = async (patent) => {
+    setIsSummarizing(true);
+    try {
+      const response = await fetch(`${API_URL}/summarize`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          patent_number: patent.patent_number,
+          title: patent.title,
+          abstract: patent.abstract
+        }),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setSummary(data.summary);
+      }
+    } catch (error) {
+      console.error('Error summarizing patent:', error);
+      alert('Failed to generate summary. Please try again.');
+    } finally {
+      setIsSummarizing(false);
     }
   };
 
@@ -572,7 +600,10 @@ function App() {
 
         <Dialog
           open={showPatentDialog}
-          onClose={() => setShowPatentDialog(false)}
+          onClose={() => {
+            setShowPatentDialog(false);
+            setSummary(null);
+          }}
           maxWidth="md"
           fullWidth
         >
@@ -582,6 +613,17 @@ function App() {
                 <Box display="flex" justifyContent="space-between" alignItems="center">
                   <Typography variant="h6">{selectedPatent.title}</Typography>
                   <Box>
+                    <Tooltip title="Summarize">
+                      <IconButton 
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          handleSummarize(selectedPatent); 
+                        }}
+                        disabled={isSummarizing}
+                      >
+                        {isSummarizing ? <CircularProgress size={24} /> : <SummarizeIcon />}
+                      </IconButton>
+                    </Tooltip>
                     <Tooltip title={bookmarkedPatents.has(selectedPatent.patent_number) ? "Remove Bookmark" : "Add Bookmark"}>
                       <IconButton onClick={(e) => { e.stopPropagation(); handleBookmark(selectedPatent.patent_number); }}>
                         {bookmarkedPatents.has(selectedPatent.patent_number) ? <BookmarkIcon /> : <BookmarkBorderIcon />}
@@ -596,44 +638,71 @@ function App() {
                 </Box>
               </DialogTitle>
               <DialogContent>
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="subtitle1" color="textSecondary">
-                    Patent Number: {selectedPatent.patent_number}
-                  </Typography>
-                </Box>
-                <Typography variant="body1" paragraph>
-                  {selectedPatent.abstract}
-                </Typography>
-                <Divider sx={{ my: 2 }} />
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle2" color="textSecondary">Inventors</Typography>
-                    <Typography variant="body1">
-                      {selectedPatent.inventors ? selectedPatent.inventors.join(', ') : 'N/A'}
+                {summary ? (
+                  <Box sx={{ mb: 3 }}>
+                    <Typography variant="h6" gutterBottom color="primary">
+                      Easy-to-Understand Summary
                     </Typography>
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle2" color="textSecondary">Assignee</Typography>
-                    <Typography variant="body1">
-                      {selectedPatent.assignee || 'N/A'}
+                    <Paper sx={{ p: 2, bgcolor: 'background.paper' }}>
+                      <Typography variant="body1">
+                        {summary}
+                      </Typography>
+                    </Paper>
+                    <Button 
+                      variant="text" 
+                      onClick={() => setSummary(null)}
+                      sx={{ mt: 1 }}
+                    >
+                      Show Original Details
+                    </Button>
+                  </Box>
+                ) : (
+                  <>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="subtitle1" color="textSecondary">
+                        Patent Number: {selectedPatent.patent_number}
+                      </Typography>
+                    </Box>
+                    <Typography variant="body1" paragraph>
+                      {selectedPatent.abstract}
                     </Typography>
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle2" color="textSecondary">Filing Date</Typography>
-                    <Typography variant="body1">
-                      {selectedPatent.filing_date ? new Date(selectedPatent.filing_date).toLocaleDateString() : 'N/A'}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle2" color="textSecondary">Patent Type</Typography>
-                    <Typography variant="body1">
-                      {selectedPatent.patent_type || 'N/A'}
-                    </Typography>
-                  </Grid>
-                </Grid>
+                    <Divider sx={{ my: 2 }} />
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} sm={6}>
+                        <Typography variant="subtitle2" color="textSecondary">Inventors</Typography>
+                        <Typography variant="body1">
+                          {selectedPatent.inventors ? selectedPatent.inventors.join(', ') : 'N/A'}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <Typography variant="subtitle2" color="textSecondary">Assignee</Typography>
+                        <Typography variant="body1">
+                          {selectedPatent.assignee || 'N/A'}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <Typography variant="subtitle2" color="textSecondary">Filing Date</Typography>
+                        <Typography variant="body1">
+                          {selectedPatent.filing_date ? new Date(selectedPatent.filing_date).toLocaleDateString() : 'N/A'}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <Typography variant="subtitle2" color="textSecondary">Patent Type</Typography>
+                        <Typography variant="body1">
+                          {selectedPatent.patent_type || 'N/A'}
+                        </Typography>
+                      </Grid>
+                    </Grid>
+                  </>
+                )}
               </DialogContent>
               <DialogActions>
-                <Button onClick={() => setShowPatentDialog(false)}>Close</Button>
+                <Button onClick={() => {
+                  setShowPatentDialog(false);
+                  setSummary(null);
+                }}>
+                  Close
+                </Button>
                 <Button
                   variant="contained"
                   color="primary"

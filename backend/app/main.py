@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional, Dict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import requests
 import json
 import os
@@ -14,6 +14,8 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import torch
 from collections import Counter
 from .model_training import ModelTrainer, create_training_pairs
+from .patent_search import PatentSearch
+from .patent_summarizer import PatentSummarizer
 
 # Load environment variables
 load_dotenv()
@@ -40,6 +42,10 @@ classifier_model = AutoModelForSequenceClassification.from_pretrained(classifier
 
 # Initialize the model trainer
 model_trainer = ModelTrainer()
+
+# Initialize components
+patent_search = PatentSearch()
+patent_summarizer = PatentSummarizer()
 
 app = FastAPI(title="PatentAI - AI Patent Search Tool")
 
@@ -85,6 +91,14 @@ class TrainingRequest(BaseModel):
     batch_size: int = 16
     epochs: int = 4
     learning_rate: float = 2e-5
+
+class SummarizeRequest(BaseModel):
+    patent_number: str
+    title: str
+    abstract: str
+
+class SummarizeResponse(BaseModel):
+    summary: str
 
 def get_embedding(text: str) -> List[float]:
     """Get embedding for a text using sentence-transformers"""
@@ -672,4 +686,16 @@ async def get_model_stats():
         raise HTTPException(
             status_code=500,
             detail=f"Error getting model stats: {str(e)}"
-        ) 
+        )
+
+@app.post("/summarize", response_model=SummarizeResponse)
+async def summarize_patent(request: SummarizeRequest):
+    try:
+        summary = patent_summarizer.summarize_patent({
+            "patent_number": request.patent_number,
+            "title": request.title,
+            "abstract": request.abstract
+        })
+        return SummarizeResponse(summary=summary)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) 
